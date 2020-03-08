@@ -2,6 +2,7 @@ from flask import Flask, escape, request
 import sqlite3
 import json
 import smtplib
+import time
 
 def connectToDb():
     connection = sqlite3.connect("magicwm")
@@ -30,8 +31,52 @@ def createDBmatter(matterobj):
     conn.commit()
     conn.close()
 
+def createDBuser(userobj):
+    query = "INSERT INTO users (username, passwordHash, timeCreated) VALUES (?, ?, ?)"
+    data_tuple = (userobj["username"], userobj["password"], int(round(time.time() * 1000)))
+    conn = connectToDb()
+    cursor = conn.cursor()
+    cursor.execute(query, data_tuple)
+    conn.commit()
+    conn.close()
+
+def getDBusers():
+    query = "SELECT * FROM users"
+    conn = connectToDb()
+    cursor = conn.cursor()
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.commit()
+    conn.close()
+    returnedArr = []
+    for row in rows:
+        returnedArr.append(row)
+    return returnedArr
+
 def getDBmatter():
     query = "SELECT * FROM matters"
+    conn = connectToDb()
+    cursor = conn.cursor()
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.commit()
+    conn.close()
+    returnedArr = []
+    for row in rows:
+        returnedArr.append(row)
+    return returnedArr
+
+def createDBTask(taskobject):
+    query = "INSERT INTO tasks (matterId, taskName, taskAssigneeId, taskStatusId, timeLogged, timeNeeded, priorityId, specialisationNeededId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    data_tuple = (taskobject["matterid"], taskobject["name"], taskobject["assigneeid"], taskobject["statusid"], taskobject["timelogged"], taskobject["timeneeded"], taskobject["priority"], taskobject["specialisation"])
+    conn = connectToDb()
+    cursor = conn.cursor()
+    cursor.execute(query, data_tuple)
+    conn.commit()
+    conn.close()
+
+def getDBTasks():
+    query = "SELECT * FROM tasks"
     conn = connectToDb()
     cursor = conn.cursor()
     cursor.execute(query)
@@ -53,6 +98,37 @@ def home():
 @app.route('/dbmatters', methods=['GET'])
 def matters():
     return str(getDBmatter())
+
+@app.route('/dbusers', methods=['GET'])
+def users():
+    return str(getDBusers())
+
+@app.route('/dbtasks', methods=['GET'])
+def tasks():
+    return str(getDBTasks())
+
+@app.route('/api/getMatters', methods=['POST'])
+def postUsers():
+    dataArr = []
+    matters = getDBmatter()
+    for matter in matters:
+        dataArr.append(
+            {
+                "name": matter[1],
+                "requestingClientId": matter[2],
+                "priorityId": matter[3],
+                "timeNeeded": matter[4],
+                "timeLogged": matter[5],
+                "isBillable": matter[6],
+                "deadline": matter[7]
+            }
+        )
+    response = app.response_class(
+        response=json.dumps(dataArr),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
 
 @app.route('/apitest', methods=['POST'])
 def api():
@@ -92,12 +168,33 @@ def matterCreate():
     }
     print(matterobject)
     createDBmatter(matterobject)
-    res = app.response_class(
-        response = str("Matter created."),
-        status = 200,
-        mimetype='text/html'
-    )
-    return res
+    return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
+
+@app.route('/api/createUser', methods=['POST'])
+def userCreate():
+    data = request.json
+    userobject = {
+        "username": data["username"],
+        "password": data["password"]
+    }
+    createDBuser(userobject)
+    return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
+
+@app.route('/api/createTask', methods=['POST'])
+def taskCreate():
+    data = request.json
+    taskobject = {
+        "matterid": data["matterid"],
+        "name": data["name"],
+        "assigneeid": data["assignee"],
+        "statusid": data["status"],
+        "timelogged": data["timelogged"],
+        "timeneeded": data["timeneeded"],
+        "priority": data["priority"],
+        "specialisation": data["specialisation"]
+    }
+    createDBTask(taskobject)
+    return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
 
 @app.route('/<string:texts>', methods=['GET'])
 def wild(texts):
@@ -105,15 +202,6 @@ def wild(texts):
 
 def run():
     #dbSetup()
-    metobj = {
-    "name": "somename",
-    "requestingClientId": 4,
-    "priorityId": 1,
-    "timeNeeded": 30,
-    "timeLogged": 25,
-    "isBillable": 0,
-    "deadline": 1583663675
-    }
     #createDBmatter(metobj)
     #print(getDBmatter())
     app.run(port=80)
