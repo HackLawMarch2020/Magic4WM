@@ -108,12 +108,13 @@ def tasks():
     return str(getDBTasks())
 
 @app.route('/api/getMatters', methods=['POST'])
-def postUsers():
+def postMatters():
     dataArr = []
     matters = getDBmatter()
     for matter in matters:
         dataArr.append(
             {
+                "id": matter[0],
                 "name": matter[1],
                 "requestingClientId": matter[2],
                 "priorityId": matter[3],
@@ -121,6 +122,49 @@ def postUsers():
                 "timeLogged": matter[5],
                 "isBillable": matter[6],
                 "deadline": matter[7]
+            }
+        )
+    response = app.response_class(
+        response=json.dumps(dataArr),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
+@app.route('/api/getUsers', methods=['POST'])
+def postUsers():
+    dataArr = []
+    users = getDBusers()
+    for user in users:
+        dataArr.append(
+            {
+                "id": user[0],
+                "username": user[1]
+            }
+        )
+    response = app.response_class(
+        response=json.dumps(dataArr),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
+@app.route('/api/getTasks', methods=['POST'])
+def postTasks():
+    dataArr = []
+    tasks = getDBTasks()
+    for task in tasks:
+        dataArr.append(
+            {
+                "taskid": task[0],
+                "matterid": task[1],
+                "name": task[2],
+                "assigneeid": task[3],
+                "statusid": task[4],
+                "timelogged": task[5],
+                "timeneeded": task[6],
+                "priority": task[7],
+                "specialisation": task[8]
             }
         )
     response = app.response_class(
@@ -207,5 +251,4 @@ def run():
     app.run(port=80)
 
 if __name__ == '__main__':
-
     run()
